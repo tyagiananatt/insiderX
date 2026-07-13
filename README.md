@@ -1,5 +1,7 @@
 # 📊 insiderX: High-Performance Multi-Agent Securities Dossier
 
+🔗 **Live Demo**: [https://insider-x-ivory.vercel.app](https://insider-x-ivory.vercel.app)
+
 insiderX is a high-performance, full-stack investment research platform that harnesses real-time financial data, technical indicator calculation engines, live news feeds, and structured multi-agent synthesis to generate comprehensive, professional stock research reports. 
 
 Built using **React (Vite)**, **Express**, and the modern **Google Gen AI SDK**, it bridges the gap between raw market numbers and human-actionable analytical wisdom.
