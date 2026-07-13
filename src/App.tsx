@@ -43,7 +43,7 @@ export default function App() {
     setCurrentTicker(ticker);
 
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || "";
+      const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       const res = await fetch(`${baseUrl}/api/research`, {
         method: "POST",
         headers: {
