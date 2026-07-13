@@ -79,8 +79,8 @@ async function startServer() {
       const balanceSheetHistory = quoteSummary.balanceSheetHistory?.balanceSheetHistory || [];
       const cashflowStatementHistory = quoteSummary.cashflowStatementHistory?.cashflowStatementHistory || [];
 
-      // Fallback verification check
-      if (incomeStatementHistory.length === 0 && balanceSheetHistory.length === 0) {
+      // Fallback verification check — only block if we have absolutely no data at all
+      if (incomeStatementHistory.length === 0 && balanceSheetHistory.length === 0 && !assetProfile.longBusinessSummary) {
         return res.status(422).json({
           error: "Insufficient data to make a reliable recommendation.",
           details: "Could not find sufficient financial statements for this ticker."
