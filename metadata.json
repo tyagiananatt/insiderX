@@ -1,0 +1,6 @@
+{
+  "name": "insiderX",
+  "description": "An evidence-based investment research agent that gathers real financial data, calculates key ratios, and generates comprehensive explainable stock reports using specialized agents.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
