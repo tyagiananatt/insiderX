@@ -43,7 +43,8 @@ export default function App() {
     setCurrentTicker(ticker);
 
     try {
-      const res = await fetch("/api/research", {
+      const baseUrl = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/research`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
