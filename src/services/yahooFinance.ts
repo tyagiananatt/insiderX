@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { HistoricalPrice } from "../utils/financialCalculations.js";
 import { getGeminiClient, generateContentWithRetry } from "./geminiClient.js";
+import { generateContentWithGroq } from "./groqClient.js";
 
 interface YahooSearchResult {
   symbol: string;
@@ -314,9 +315,40 @@ export async function getStockData(ticker: string): Promise<any> {
     const result = await getGeminiStockDataFallback(ticker);
     return result;
   } catch (err: any) {
-    console.error(`Strategy 3 (Grounded Gemini fallback) also failed for ${ticker}:`, err);
-    throw new Error(`Failed to retrieve stock data for ${ticker.toUpperCase()}: ${err.message || err}`);
+    console.warn(`Strategy 3 (Grounded Gemini fallback) failed for ${ticker}:`, err.message || err);
   }
+
+  // Strategy 4: Groq fallback when Gemini quota is exhausted
+  if (process.env.GROQ_API_KEY) {
+    try {
+      console.log(`[getStockData] Attempting Strategy 4 (Groq fallback) for ${ticker}`);
+      const prompt = `Retrieve and compile the latest factual corporate financial statements and statistics for the stock ticker: ${ticker}.
+Return ONLY a valid JSON object with this exact structure (use realistic numbers):
+{
+  "assetProfile": { "industry": "string", "sector": "string", "longBusinessSummary": "string", "fullTimeEmployees": 100000, "website": "string", "city": "string", "country": "string" },
+  "price": { "longName": "string" },
+  "financialData": { "currentPrice": { "raw": 0 }, "returnOnEquity": { "raw": 0 }, "returnOnAssets": { "raw": 0 }, "currentRatio": { "raw": 0 }, "debtToEquity": { "raw": 0 }, "operatingMargins": { "raw": 0 }, "profitMargins": { "raw": 0 }, "freeCashflow": { "raw": 0 } },
+  "summaryDetail": { "trailingPE": { "raw": 0 }, "fiftyTwoWeekHigh": { "raw": 0 }, "fiftyTwoWeekLow": { "raw": 0 }, "marketCap": { "raw": 0 } },
+  "defaultKeyStatistics": { "marketCap": { "raw": 0 } },
+  "incomeStatementHistory": { "incomeStatementHistory": [{ "totalRevenue": { "raw": 0 }, "netIncome": { "raw": 0 }, "dilutedEPS": { "raw": 0 }, "operatingIncome": { "raw": 0 } }] },
+  "balanceSheetHistory": { "balanceSheetHistory": [{ "totalStockholderEquity": { "raw": 0 }, "totalAssets": { "raw": 0 }, "totalCurrentAssets": { "raw": 0 }, "totalCurrentLiabilities": { "raw": 0 }, "totalDebt": { "raw": 0 } }] },
+  "cashflowStatementHistory": { "cashflowStatementHistory": [{ "freeCashFlow": { "raw": 0 }, "totalCashFromOperatingActivities": { "raw": 0 } }] }
+}`;
+      const response = await generateContentWithGroq({
+        systemInstruction: "You are a financial data API. Return only valid JSON with real financial data for the requested ticker. No explanation, no markdown.",
+        contents: prompt,
+      });
+      if (response.text) {
+        const parsed = JSON.parse(response.text);
+        console.log(`[getStockData] Strategy 4 (Groq) succeeded for ${ticker}`);
+        return parsed;
+      }
+    } catch (err: any) {
+      console.warn(`Strategy 4 (Groq fallback) failed for ${ticker}:`, err.message || err);
+    }
+  }
+
+  throw new Error(`Failed to retrieve stock data for ${ticker.toUpperCase()}. All data sources exhausted.`);
 }
 
 /**
