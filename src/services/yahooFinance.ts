@@ -116,6 +116,10 @@ export async function searchTickers(query: string): Promise<{ quotes: YahooSearc
  * Grounded Gemini fallback for stock summary and statement details when Yahoo blocks requests.
  */
 async function getGeminiStockDataFallback(ticker: string): Promise<any> {
+  // Fast-fail if Gemini quota is known exhausted
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured.");
+
   const ai = getGeminiClient();
 
   console.log(`[Resilience Pipeline] Initiating Google Search grounded Gemini analysis for ticker: ${ticker}`);
@@ -309,13 +313,18 @@ export async function getStockData(ticker: string): Promise<any> {
     console.warn(`Strategy 2 failed: ${err.message || err}`);
   }
 
-  // Strategy 3: Grounded Gemini SEC-scraping Fallback
+  // Strategy 3: Grounded Gemini SEC-scraping Fallback (skip if quota known exhausted)
   try {
     console.log(`[getStockData] Attempting Strategy 3 (Google Grounded Gemini Search) for ${ticker}`);
     const result = await getGeminiStockDataFallback(ticker);
     return result;
   } catch (err: any) {
-    console.warn(`Strategy 3 (Grounded Gemini fallback) failed for ${ticker}:`, err.message || err);
+    const isQuotaError = err.message?.includes("429") || err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("quota");
+    if (isQuotaError) {
+      console.warn(`[getStockData] Strategy 3 skipped — Gemini quota exhausted. Going straight to Groq.`);
+    } else {
+      console.warn(`Strategy 3 (Grounded Gemini fallback) failed for ${ticker}:`, err.message || err);
+    }
   }
 
   // Strategy 4: Groq fallback when Gemini quota is exhausted
