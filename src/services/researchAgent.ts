@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { FinancialRatios, TechnicalIndicators } from "../utils/financialCalculations.js";
 import { getGeminiClient, generateContentWithRetry } from "./geminiClient.js";
+import { generateContentWithGroq } from "./groqClient.js";
 
 export interface AgentResearchPayload {
   ticker: string;
@@ -139,10 +140,27 @@ Ratios: ${JSON.stringify(payload.ratios)}
       console.log(`[Research Pipeline] Successfully retrieved unified single-call report for ${payload.ticker}`);
     }
   } catch (err: any) {
-    console.error(`[Research Pipeline] Single-call analysis failed for ${payload.ticker}:`, err.message || err);
+    console.error(`[Research Pipeline] Gemini failed for ${payload.ticker}:`, err.message || err);
   }
 
-  // Fallback to highly-detailed, deterministically formatted local analysis if Gemini API fails
+  // Groq fallback — if Gemini failed, try Groq before the deterministic fallback
+  if (!responseData && process.env.GROQ_API_KEY) {
+    try {
+      console.warn(`[Research Pipeline] Gemini unavailable. Trying Groq fallback for ${payload.ticker}...`);
+      const groqResponse = await generateContentWithGroq({
+        systemInstruction,
+        contents: userPrompt,
+      });
+      if (groqResponse.text) {
+        responseData = JSON.parse(groqResponse.text);
+        console.log(`[Research Pipeline] Groq fallback succeeded for ${payload.ticker}`);
+      }
+    } catch (groqErr: any) {
+      console.error(`[Research Pipeline] Groq fallback also failed for ${payload.ticker}:`, groqErr.message || groqErr);
+    }
+  }
+
+  // Final fallback: deterministic local analysis if both Gemini and Groq fail
   if (!responseData) {
     console.warn(`[Research Pipeline] Triggering deterministic local analysis fallback for ${payload.ticker}.`);
     responseData = {
